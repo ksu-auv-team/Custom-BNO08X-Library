@@ -77,8 +77,6 @@ class BNO085:
                 return None
 
             if pkt:
-                print(f"RAW PACKET [{len(pkt)} bytes]: {pkt.hex()}")
-
                 # Ignore too-short packets
                 if len(pkt) < 16:
                     print("Packet too short, skipping...")
@@ -90,12 +88,12 @@ class BNO085:
 
                 if report_id == REPORT_ACCEL:
                     data = tuple(x * Q8 for x in raw)
-                    print(f"Accel data: {data}, Accuracy: {accuracy}")
+                    # print(f"Accel data: {data}, Accuracy: {accuracy}")
                     return {"accel": data, "accuracy": accuracy}
 
                 elif report_id == REPORT_GYRO:
                     data = tuple(x * Q9 for x in raw)
-                    print(f"Gyro data: {data}, Accuracy: {accuracy}")
+                    # print(f"Gyro data: {data}, Accuracy: {accuracy}")
                     return {"gyro": data, "accuracy": accuracy}
 
             time.sleep(0.01)
