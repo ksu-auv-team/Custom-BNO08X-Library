@@ -68,8 +68,7 @@ class BNO085:
             try:
                 pkt = self.i2c.read_packet()
             except TimeoutError:
-                if self.debug:
-                    print("I2C read timeout — BNO085 may have stalled.")
+                print("I2C read timeout — BNO085 may have stalled.")
                 # Optional: Attempt soft reset and reinit here
                 # self.initialize()
                 return None
@@ -78,8 +77,7 @@ class BNO085:
                 return None
 
             if pkt:
-                if self.debug:
-                    print(f"RAW PACKET [{len(pkt)} bytes]: {pkt.hex()}")
+                print(f"RAW PACKET [{len(pkt)} bytes]: {pkt.hex()}")
 
                 # Ignore too-short packets
                 if len(pkt) < 16:
