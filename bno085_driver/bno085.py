@@ -32,10 +32,7 @@ class BNO085:
         packet = self._build_feature_enable(report_id)
         self.i2c.send_packet(CH_CONTROL, packet)
         time.sleep(0.5)  # allow time for internal processing
-        if self.debug:
-            print(f"Feature 0x{report_id:02X} enabled.")
-        else:
-            print(f"Feature 0x{report_id:02X} enabled.")
+        print(f"Feature 0x{report_id:02X} enabled.")
 
     def _send_command_request(self, command_id, parameters=None):
         buf = bytearray(12)
