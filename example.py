@@ -1,14 +1,22 @@
 from bno085_driver.bno085 import BNO085
+from bno085_driver.constants import REPORT_ACCEL, REPORT_GYRO
 import time
 
-
-bno = BNO085(bus_num=7)
+bno = BNO085()
 bno.initialize()
-bno.enable_sensor_reports()
+
+bno.enable_feature(REPORT_ACCEL)
+bno.enable_feature(REPORT_GYRO)
+
+bno.begin_calibration()
+time.sleep(5)
+bno.save_calibration()
 
 while True:
-    data = bno.get_sensor_data()
-    ax, ay, az = data['accel']
-    gx, gy, gz = data['gyro']
-    print(f"Accel: X={ax:.3f} Y={ay:.3f} Z={az:.3f} | Gyro: Roll={gx:.3f} Pitch={gy:.3f} Yaw={gz:.3f}")
-    time.sleep(0.1)
+    data = bno.read_sensor()
+    if data:
+        if "accel" in data:
+            print("Accel:", data["accel"])
+        if "gyro" in data:
+            print("Gyro:", data["gyro"])
+    time.sleep(0.05)

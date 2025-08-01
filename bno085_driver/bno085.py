@@ -1,25 +1,69 @@
 import time
-from .i2c_interface import I2CInterface
+from struct import unpack_from
 from .constants import *
+from .i2c_interface import I2CInterface
 
 class BNO085:
-    def __init__(self, bus_num=7, address=BNO08X_ADDRESS):
-        self.i2c = I2CInterface(bus_num, address)
+    def __init__(self, bus=I2C_BUS, address=I2C_ADDR):
+        self.i2c = I2CInterface(bus, address)
 
     def initialize(self):
-        # TODO: Send required SH-2 init sequences
-        print("Initializing BNO085 (not fully implemented)")
-        time.sleep(1)
+        """
+        Soft reset the sensor and clear packet state.
+        """
+        self.i2c.send_packet(CH_EXEC, bytearray([1]))
+        time.sleep(0.5)
+        self.i2c.send_packet(CH_EXEC, bytearray([1]))
+        time.sleep(0.5)
+        for _ in range(3):
+            try:
+                self.i2c.read_packet()
+            except:
+                pass
 
-    def enable_sensor_reports(self):
-        # TODO: Send SH-2 commands to enable accelerometer and gyro reports
-        print("Enabling accelerometer and gyro (not fully implemented)")
+    def _build_feature_enable(self, report_id):
+        buf = bytearray(17)
+        buf[0] = CMD_SET_FEATURE
+        buf[1] = report_id
+        buf[5:9] = REPORT_INTERVAL.to_bytes(4, 'little')
+        return buf
 
-    def get_sensor_data(self):
-        # TODO: Read SH-2 report packets and extract:
-        # - Acceleration (X, Y, Z)
-        # - Angular velocity (Roll, Pitch, Yaw)
-        return {
-            "accel": (0.0, 0.0, 0.0),  # placeholder
-            "gyro": (0.0, 0.0, 0.0)    # placeholder
-        }
+    def enable_feature(self, report_id):
+        packet = self._build_feature_enable(report_id)
+        self.i2c.send_packet(CH_CONTROL, packet)
+        time.sleep(0.1)
+
+    def _send_command_request(self, command_id, parameters=None):
+        buf = bytearray(12)
+        buf[0] = CMD_COMMAND_REQUEST
+        buf[1] = self.i2c.sequence[CH_CONTROL]
+        buf[2] = command_id
+        if parameters:
+            for i, val in enumerate(parameters[:9]):
+                buf[3 + i] = val
+        self.i2c.send_packet(CH_CONTROL, buf)
+        time.sleep(0.2)
+
+    def begin_calibration(self):
+        self._send_command_request(CMD_ME_CALIBRATE, [
+            1, 1, 1, ME_CAL_CONFIG,
+            0, 0, 0, 0, 0
+        ])
+        print("Calibration started...")
+
+    def save_calibration(self):
+        self._send_command_request(CMD_SAVE_DCD)
+        print("Calibration saved to flash.")
+
+    def read_sensor(self):
+        pkt = self.i2c.read_packet()
+        if not pkt:
+            return None
+        report_id = pkt[4]
+        accuracy = pkt[6] & 0x03
+        raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
+        if report_id == REPORT_ACCEL:
+            return {"accel": tuple(x * Q8 for x in raw), "accuracy": accuracy}
+        elif report_id == REPORT_GYRO:
+            return {"gyro": tuple(x * Q9 for x in raw), "accuracy": accuracy}
+        return None
