@@ -3,16 +3,13 @@ from struct import unpack_from
 from .constants import *
 from .i2c_interface import I2CInterface
 
-
 class BNO085:
     def __init__(self, bus=I2C_BUS, address=I2C_ADDR):
         self.i2c = I2CInterface(bus, address)
-        self.accel = None
-        self.gyro = None
 
     def initialize(self):
         """
-        Soft reset the sensor and flush startup packets.
+        Soft reset the sensor and clear packet state.
         """
         self.i2c.send_packet(CH_EXEC, bytearray([1]))
         time.sleep(0.5)
@@ -20,7 +17,9 @@ class BNO085:
         time.sleep(0.5)
         for _ in range(3):
             try:
-                self.i2c.read_packet()
+                pkt = self.i2c.read_packet()
+                if pkt:
+                    print(f'Startup packet: {pkt.hex()}')
                 time.sleep(0.1)
             except:
                 pass
@@ -33,12 +32,10 @@ class BNO085:
         return buf
 
     def enable_feature(self, report_id):
-        """
-        Enable a specific sensor data report.
-        """
         packet = self._build_feature_enable(report_id)
         self.i2c.send_packet(CH_CONTROL, packet)
-        time.sleep(0.5)
+        time.sleep(0.5)  # allow time for internal processing
+        print(f"Feature 0x{report_id:02X} enabled.")
 
     def _send_command_request(self, command_id, parameters=None):
         buf = bytearray(12)
@@ -52,62 +49,56 @@ class BNO085:
         time.sleep(0.2)
 
     def begin_calibration(self):
-        """
-        Start accelerometer and gyroscope calibration.
-        """
         self._send_command_request(CMD_ME_CALIBRATE, [
             1, 1, 1, ME_CAL_CONFIG,
             0, 0, 0, 0, 0
         ])
+        print("Calibration started...")
 
     def save_calibration(self):
-        """
-        Save current calibration to flash memory.
-        """
         self._send_command_request(CMD_SAVE_DCD)
+        print("Calibration saved to flash.")
 
-    def _parse_packet(self, pkt):
+    def read_sensor(self, retries=5):
         """
-        Parse a raw SH-2 report packet into accel or gyro data.
+        Attempt to read an accelerometer or gyroscope report from the BNO085.
+        Retries up to `retries` times, and handles bus timeouts gracefully.
         """
-        if len(pkt) < 16:
-            return
+        for attempt in range(retries):
+            try:
+                pkt = self.i2c.read_packet()
+            except TimeoutError:
+                print("I2C read timeout — BNO085 may have stalled.")
+                # Optional: Attempt soft reset and reinit here
+                # self.initialize()
+                return None
+            except OSError as e:
+                print(f"I2C OSError: {e}")
+                return None
 
-        report_id = pkt[4]
-        accuracy = pkt[6] & 0x03
-        raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
-
-        if report_id == REPORT_ACCEL:
-            self.accel = tuple(x * Q8 for x in raw)
-        elif report_id == REPORT_GYRO:
-            self.gyro = tuple(x * Q9 for x in raw)
-
-    def _poll_once(self):
-        try:
-            pkt = self.i2c.read_packet()
             if pkt:
-                self._parse_packet(pkt)
-        except (TimeoutError, OSError):
-            pass
+                print(f"RAW PACKET [{len(pkt)} bytes]: {pkt.hex()}")
 
-    def update(self, retries=5):
-        """
-        Poll the BNO085 for new packets.
-        """
-        for _ in range(retries):
-            self._poll_once()
-            if self.accel and self.gyro:
-                break
+                # Ignore too-short packets
+                if len(pkt) < 16:
+                    print("Packet too short, skipping...")
+                    continue
+
+                report_id = pkt[4]
+                accuracy = pkt[6] & 0x03
+                raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
+
+                if report_id == REPORT_ACCEL:
+                    data = tuple(x * Q8 for x in raw)
+                    print(f"Accel data: {data}, Accuracy: {accuracy}")
+                    return {"accel": data, "accuracy": accuracy}
+
+                elif report_id == REPORT_GYRO:
+                    data = tuple(x * Q9 for x in raw)
+                    print(f"Gyro data: {data}, Accuracy: {accuracy}")
+                    return {"gyro": data, "accuracy": accuracy}
+
             time.sleep(0.01)
+        return None
 
-    def get_acceleration(self):
-        """
-        Returns most recent acceleration data as (x, y, z) in m/s².
-        """
-        return self.accel
 
-    def get_angular_velocity(self):
-        """
-        Returns most recent angular velocity as (x, y, z) in rad/s.
-        """
-        return self.gyro
