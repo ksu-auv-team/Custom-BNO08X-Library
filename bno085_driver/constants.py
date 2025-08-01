@@ -1,0 +1,10 @@
+# BNO08x virtual sensor report IDs
+REPORTID_ACCELEROMETER = 0x01
+REPORTID_GYROSCOPE = 0x02
+
+# Channels
+CHANNEL_CONTROL = 0
+CHANNEL_REPORTS = 1
+
+# Other constants
+BNO08X_ADDRESS = 0x4B
