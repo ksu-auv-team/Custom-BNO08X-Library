@@ -4,7 +4,7 @@ import time
 
 bno = BNO085()
 bno.initialize()
-
+time.sleep(2)
 bno.enable_feature(REPORT_ACCEL)
 bno.enable_feature(REPORT_GYRO)
 

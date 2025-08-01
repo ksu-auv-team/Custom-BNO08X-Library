@@ -17,7 +17,10 @@ class BNO085:
         time.sleep(0.5)
         for _ in range(3):
             try:
-                self.i2c.read_packet()
+                pkt = self.i2c.read_packet()
+                if pkt:
+                    print(f'Startup packet: {pkt.hex()}')
+                time.sleep(0.1)
             except:
                 pass
 
@@ -56,20 +59,24 @@ class BNO085:
         self._send_command_request(CMD_SAVE_DCD)
         print("Calibration saved to flash.")
 
-    def read_sensor(self):
-        """
-        Reads and parses the next sensor packet. Returns either accel or gyro dicts.
-        """
-        while True:
+    def read_sensor(self, retries=5):
+        for _ in range(retries):
             pkt = self.i2c.read_packet()
-            if not pkt:
-                return None
-            report_id = pkt[4]
-            accuracy = pkt[6] & 0x03
-            raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
+            if pkt:
+                if self.debug:
+                    logger.debug(f"RAW PACKET: {pkt.hex()}")
 
-            if report_id == REPORT_ACCEL:
-                return {"accel": tuple(x * Q8 for x in raw), "accuracy": accuracy}
-            elif report_id == REPORT_GYRO:
-                return {"gyro": tuple(x * Q9 for x in raw), "accuracy": accuracy}
+                if len(pkt) < 16:
+                    continue  # too short to be valid report
+
+                report_id = pkt[4]
+                accuracy = pkt[6] & 0x03
+                raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
+
+                if report_id == REPORT_ACCEL:
+                    return {"accel": tuple(x * Q8 for x in raw), "accuracy": accuracy}
+                elif report_id == REPORT_GYRO:
+                    return {"gyro": tuple(x * Q9 for x in raw), "accuracy": accuracy}
+            time.sleep(0.01)
+        return None
 
