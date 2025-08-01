@@ -1,4 +1,6 @@
 from bno085_driver.bno085 import BNO085
+import time
+
 
 bno = BNO085(bus_num=7)
 bno.initialize()
