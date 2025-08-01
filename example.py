@@ -19,4 +19,6 @@ while True:
             print("Accel:", data["accel"])
         if "gyro" in data:
             print("Gyro:", data["gyro"])
+    else:
+        print("No data received")
     time.sleep(0.05)
