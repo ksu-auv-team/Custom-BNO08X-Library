@@ -60,23 +60,56 @@ class BNO085:
         print("Calibration saved to flash.")
 
     def read_sensor(self, retries=5):
-        for _ in range(retries):
-            pkt = self.i2c.read_packet()
+        """
+        Attempt to read an accelerometer or gyroscope report from the BNO085.
+        Retries up to `retries` times, and handles bus timeouts gracefully.
+        """
+        for attempt in range(retries):
+            try:
+                pkt = self.i2c.read_packet()
+            except TimeoutError:
+                if self.debug:
+                    print("I2C read timeout — BNO085 may have stalled.")
+                # Optional: Attempt soft reset and reinit here
+                # self.initialize()
+                return None
+            except OSError as e:
+                print(f"I2C OSError: {e}")
+                return None
+
             if pkt:
                 if self.debug:
-                    logger.debug(f"RAW PACKET: {pkt.hex()}")
+                    print(f"RAW PACKET [{len(pkt)} bytes]: {pkt.hex()}")
 
+                # Ignore too-short packets
                 if len(pkt) < 16:
-                    continue  # too short to be valid report
+                    if self.debug:
+                        print("Packet too short, skipping...")
+                    continue
 
                 report_id = pkt[4]
                 accuracy = pkt[6] & 0x03
                 raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
 
                 if report_id == REPORT_ACCEL:
-                    return {"accel": tuple(x * Q8 for x in raw), "accuracy": accuracy}
+                    data = tuple(x * Q8 for x in raw)
+                    if self.debug:
+                        print(f"Accel Report: {data}, Accuracy: {accuracy}")
+                    return {"accel": data, "accuracy": accuracy}
+
                 elif report_id == REPORT_GYRO:
-                    return {"gyro": tuple(x * Q9 for x in raw), "accuracy": accuracy}
+                    data = tuple(x * Q9 for x in raw)
+                    if self.debug:
+                        print(f"Gyro Report: {data}, Accuracy: {accuracy}")
+                    return {"gyro": data, "accuracy": accuracy}
+
+                else:
+                    if self.debug:
+                        print(f"Unhandled report ID: 0x{report_id:02X}")
             time.sleep(0.01)
+
+        if self.debug:
+            print("No valid report received after retries.")
         return None
+
 
