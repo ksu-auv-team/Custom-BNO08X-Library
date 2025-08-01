@@ -31,7 +31,11 @@ class BNO085:
     def enable_feature(self, report_id):
         packet = self._build_feature_enable(report_id)
         self.i2c.send_packet(CH_CONTROL, packet)
-        time.sleep(0.1)
+        time.sleep(0.5)  # allow time for internal processing
+        if self.debug:
+            print(f"Feature 0x{report_id:02X} enabled.")
+        else:
+            print(f"Feature 0x{report_id:02X} enabled.")
 
     def _send_command_request(self, command_id, parameters=None):
         buf = bytearray(12)
@@ -56,14 +60,19 @@ class BNO085:
         print("Calibration saved to flash.")
 
     def read_sensor(self):
-        pkt = self.i2c.read_packet()
-        if not pkt:
-            return None
-        report_id = pkt[4]
-        accuracy = pkt[6] & 0x03
-        raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
-        if report_id == REPORT_ACCEL:
-            return {"accel": tuple(x * Q8 for x in raw), "accuracy": accuracy}
-        elif report_id == REPORT_GYRO:
-            return {"gyro": tuple(x * Q9 for x in raw), "accuracy": accuracy}
-        return None
+        """
+        Reads and parses the next sensor packet. Returns either accel or gyro dicts.
+        """
+        while True:
+            pkt = self.i2c.read_packet()
+            if not pkt:
+                return None
+            report_id = pkt[4]
+            accuracy = pkt[6] & 0x03
+            raw = [unpack_from("<h", pkt, offset)[0] for offset in (8, 10, 12)]
+
+            if report_id == REPORT_ACCEL:
+                return {"accel": tuple(x * Q8 for x in raw), "accuracy": accuracy}
+            elif report_id == REPORT_GYRO:
+                return {"gyro": tuple(x * Q9 for x in raw), "accuracy": accuracy}
+

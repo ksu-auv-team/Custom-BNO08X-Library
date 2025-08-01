@@ -19,7 +19,7 @@ CMD_ME_CALIBRATE = 0x07
 ME_CAL_CONFIG = 0x00
 
 # Report timing
-REPORT_INTERVAL = 50000  # 50 ms
+REPORT_INTERVAL = 20000  # 20 ms
 
 # Scaling factors
 Q8 = 2 ** -8
