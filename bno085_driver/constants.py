@@ -1,5 +1,5 @@
 # I2C bus & address
-I2C_BUS = 7
+I2C_BUS = 1
 I2C_ADDR = 0x4B
 
 # SH-2 channel numbers
