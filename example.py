@@ -16,8 +16,12 @@ while True:
     accel = bno.get_acceleration()
     gyro = bno.get_angular_velocity()
 
-    if accel:
-        print(f"Accel: X={accel[0]:.3f}, Y={accel[1]:.3f}, Z={accel[2]:.3f}")
-    if gyro:
-        print(f"Gyro : X={gyro[0]:.3f}, Y={gyro[1]:.3f}, Z={gyro[2]:.3f}")
+    if accel and gyro:
+        print(f"Acceleration: {accel}, Gyro: {gyro}")
+    elif not accel and not gyro:
+        print("No data available yet.")
+    elif accel and not gyro:
+        print(f"Acceleration: {accel}")
+    elif gyro and not accel:
+        print(f"Gyro: {gyro}")
     time.sleep(0.05)
