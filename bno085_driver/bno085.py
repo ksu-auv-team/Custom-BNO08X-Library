@@ -83,8 +83,7 @@ class BNO085:
 
                 # Ignore too-short packets
                 if len(pkt) < 16:
-                    if self.debug:
-                        print("Packet too short, skipping...")
+                    print("Packet too short, skipping...")
                     continue
 
                 report_id = pkt[4]
@@ -93,23 +92,15 @@ class BNO085:
 
                 if report_id == REPORT_ACCEL:
                     data = tuple(x * Q8 for x in raw)
-                    if self.debug:
-                        print(f"Accel Report: {data}, Accuracy: {accuracy}")
+                    print(f"Accel data: {data}, Accuracy: {accuracy}")
                     return {"accel": data, "accuracy": accuracy}
 
                 elif report_id == REPORT_GYRO:
                     data = tuple(x * Q9 for x in raw)
-                    if self.debug:
-                        print(f"Gyro Report: {data}, Accuracy: {accuracy}")
+                    print(f"Gyro data: {data}, Accuracy: {accuracy}")
                     return {"gyro": data, "accuracy": accuracy}
 
-                else:
-                    if self.debug:
-                        print(f"Unhandled report ID: 0x{report_id:02X}")
             time.sleep(0.01)
-
-        if self.debug:
-            print("No valid report received after retries.")
         return None
 
 
