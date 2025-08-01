@@ -4,7 +4,6 @@ import time
 
 bno = BNO085()
 bno.initialize()
-time.sleep(2)
 bno.enable_feature(REPORT_ACCEL)
 bno.enable_feature(REPORT_GYRO)
 
@@ -13,12 +12,12 @@ time.sleep(5)
 bno.save_calibration()
 
 while True:
-    data = bno.read_sensor()
-    if data:
-        if "accel" in data:
-            print("Accel:", data["accel"])
-        if "gyro" in data:
-            print("Gyro:", data["gyro"])
-    else:
-        print("No data received")
+    bno.update()
+    accel = bno.get_acceleration()
+    gyro = bno.get_angular_velocity()
+
+    if accel:
+        print(f"Accel: X={accel[0]:.3f}, Y={accel[1]:.3f}, Z={accel[2]:.3f}")
+    if gyro:
+        print(f"Gyro : X={gyro[0]:.3f}, Y={gyro[1]:.3f}, Z={gyro[2]:.3f}")
     time.sleep(0.05)
